@@ -1,0 +1,820 @@
+
+        /*
+        private bool EnsureDocument()
+        {
+            if (Document != null)
+            {
+                Trace.WriteLine("!!!!!!!!! RELEASE");
+                Marshal.FinalReleaseComObject(Document);
+                Document = null;
+            }
+
+            Document = WWADOMHelper.GetDocumentForWindow(hWnd) as HTMLDocument;
+            if (Document == null)
+            {
+                // TODO: handle error
+                Trace.WriteLine("Couldn't get DOM");
+                return false;
+            }
+            else
+            {
+                try
+                {
+                    int j = 0;
+                    while (Document.readyState != "complete" && j < 10)
+                    {
+                        Trace.WriteLine("Waiting for Document Ready...");
+                        Thread.Sleep(100);
+                        j++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine("ReadyState (ignore): " + ex.Message);
+                    // if this fails, just keep trying anyway.
+                    // TODO: comment from wWADomAccess
+                }
+                Trace.WriteLine(Document.url);
+            }
+            return true;
+        }
+        */
+        float fontSize = 14.66f;
+        float lineHeight = 20;
+
+        public void InjectDefaultTools()
+        {
+            // enable zoom:
+            // -ms-content-zooming: zoom;
+            // doesn't work:
+            // -ms-touch-action: manipulation;
+            // mshtml.HTMLElementEvents2_Event theEvent = obj
+
+            if (true /*EnsureDocument()*/
+            {
+                if (Document.url.StartsWith("ms-appx://microsoft.windowscommunicationsapps/ModernChat/"))
+                {
+                    Trace.WriteLine("Injecting Modern Chat...");
+
+                    /*
+                    var sheet = HtmlHelper.GetSheet(Document, "__AccSheet__");
+                    */
+
+                    string defaultcss = @"
+                    .AccFontSizeControl
+                    {
+                        position: absolute;
+                        top: 8px; right: 4px; 
+                        display: block; 
+                        background: black; 
+                        color: white;
+                        border-radius: 20px; 
+                        font-size: 50px; 
+                        text-align: center;
+                        width: 40px; height: 40px; 
+                        line-height: 29px;   
+                        z-index: 9999;
+                    }
+";/*
+                    .messagebody 
+                    { 
+                        font-size: 14.66px !important; 
+                        line-height: 20px !important; 
+                    }
+                    .chat-inputArea
+                    {
+                        font-size: 14.66px !important; 
+                        line-height: 20px !important; 
+                    }*/
+
+                    var css = Document.createStyleSheet();
+                    css.title = "AccSupportCss";
+                    css.cssText = defaultcss;
+
+                    var Body = Document.body as HTMLBody;
+
+                    var div = Document.createElement("div");
+                    div.innerHTML = @"
+                                <div class='AccFontSizeControl' style='right: 150px;' id='AccSupport_MinSize'>M</div>
+                                <div class='AccFontSizeControl' style='right: 100px;' id='AccSupport_Color'>c</div>
+                                <div class='AccFontSizeControl' style='right: 50px;' id='AccSupport_Plus'>+</div>
+                                <div class='AccFontSizeControl' id='AccSupport_Minus'>-</div>";
+                    Body.appendChild(div as IHTMLDOMNode);
+
+                    // Note: onclick crashes WWA (?!)
+                    var js = @"
+                    function getCssRule(m)
+                    {
+                        for (var i=0; i<document.styleSheets.length; i++)
+                        {
+                            var sheet = document.styleSheets[i];
+                            var r = 0;
+                            var rule = false;
+                            do
+                            {
+                                rule = sheet.rules[r];
+                                if (rule && rule.selectorText.toLowerCase()==m.toLowerCase())
+                                {
+                                    return rule;
+                                }
+                            r++;
+                            } while(rule)
+                        }
+                        return null;
+                    }
+
+                    function getCssRules(m, cb)
+                    {
+                        for (var i=0; i<document.styleSheets.length; i++)
+                        {
+                            var sheet = document.styleSheets[i];
+                            var r = 0;
+                            var rule = false;
+                            do
+                            {
+                                rule = sheet.rules[r];
+                                if (rule && rule.selectorText.toLowerCase()==m.toLowerCase())
+                                {
+                                    cb(rule);
+                                }
+                            r++;
+                            } while(rule)
+                        }
+                    }
+
+                    function allCssRules(cb)
+                    {
+                        for (var i=0; i<document.styleSheets.length; i++)
+                        {
+                            var sheet = document.styleSheets[i];
+                            var r = 0;
+                            var rule = false;
+                            do
+                            {
+                                rule = sheet.rules[r];
+                                if (rule)
+                                {
+                                    cb(rule);
+                                }
+                            r++;
+                            } while(rule)
+                        }
+                    }
+
+                    function getFontSizeType(fontSize)
+                    {
+                        if (fontSize.indexOf('px') != -1)
+                        {
+                            return 'px';
+                        }
+                        if (fontSize.indexOf('pt') != -1)
+                        {
+                            return 'pt';
+                        }
+                        if (fontSize.indexOf('em') != -1)
+                        {
+                            return 'em';
+                        }
+                        if (fontSize.indexOf('ex') != -1)
+                        {
+                            return 'ex';
+                        }
+                        if (fontSize.indexOf('%') != -1)
+                        {
+                            return '%';
+                        }
+                        return 'px';
+                    }
+
+                    function getIncForfontSizeType(ty)
+                    {
+                        switch(ty)
+                        {
+                            case 'px':
+                                return 2;
+                            case 'px':
+                                return 2;
+                            case 'pt':
+                                return 1;
+                            case 'em':
+                                return 0.2;
+                            case 'ex':
+                                return 0.4;
+                            case '%':
+                                return 10;
+                        } 
+                        return 1;
+                    }
+
+                    function addProperty(prop, multip)
+                    {
+                        var ty = getFontSizeType(prop);
+                        var inc = getIncForfontSizeType(ty);
+                        return (parseFloat(prop) + (inc * multip)) + ty; 
+                    }
+
+                    function addFontSizeByRule(r, s)
+                    {
+                        var rule = getCssRule(r);
+                        if (rule != null)
+                        { 
+                            rule.style.fontSize = addProperty(rule.style.fontSize, s);
+                            rule.style.lineHeight = addProperty(rule.style.lineHeight, s);
+                        }
+                    }
+
+                    document.getElementById('AccSupport_Plus').addEventListener('click', function(){
+                        addFontSizeByRule('.messagebody', 1);
+                        addFontSizeByRule('.chat-inputArea', 1);
+                    }, false);
+                    document.getElementById('AccSupport_Minus').addEventListener('click', function(){
+                        addFontSizeByRule('.messagebody', -1);
+                        addFontSizeByRule('.chat-inputArea', -1);
+                    }, false);
+
+                    document.getElementById('AccSupport_Color').addEventListener('click', function(){
+                        getCssRule('.messagebody-localuser').style.background = 'darkblue';
+                        getCssRule('.messagebody-localuser').style.color = 'white';
+                        getCssRule('.chathistory-localuser').style.background = 'darkblue';
+                        getCssRule('.messagetimestamp-localuser').style.color = 'white';
+                        getCssRules('.chathistory-beak-local', function(rule)
+                        {
+                            rule.style.borderColor = 'darkblue transparent transparent darkblue';
+                        });
+
+                        getCssRule('.messagebody-buddy').style.background = 'darkgreen';
+                        getCssRule('.chathistory-buddy').style.background = 'darkgreen';
+                        getCssRules('.chathistory-beak-buddy', function(rule)
+                        {
+                            rule.style.borderColor = 'darkgreen darkgreen transparent transparent';
+                        });
+                    }, false);
+                    document.getElementById('AccSupport_MinSize').addEventListener('click', function(){
+                        allCssRules( function(rule)
+                        {
+
+                            if (rule.style.fontSize)
+                            {
+                                var ty = getFontSizeType(rule.style.fontSize);
+                                var inc = getIncForfontSizeType(ty);
+                                rule.style.fontSize = (parseFloat(rule.style.fontSize) + (inc * 1)) + ty; 
+/*
+                                switch(ty)
+                                {
+                                    case 'px':
+                                        if (parseFloat(rule.style.fontSize) < 32)
+                                        {
+                                            rule.style.fontSize = '32px';
+                                        }
+                                    case 'pt':
+                                        if (parseFloat(rule.style.fontSize) < 24)
+                                        {
+                                            rule.style.fontSize = '24pt';
+                                        }
+                                    case '%':
+                                        if (parseFloat(rule.style.fontSize) < 200)
+                                        {
+                                            rule.style.fontSize = '200%';
+                                        }
+                                    case 'em':
+                                        if (parseFloat(rule.style.fontSize) < 2)
+                                        {
+                                            rule.style.fontSize = '2em';
+                                        }
+                                }
+*/
+                            }
+                        });
+                    }, false);
+";
+
+                    var script = Document.createElement("script") as HTMLScriptElement;
+                    script.type = "text/javascript";
+                    script.innerText = js;
+                    (Document.getElementsByTagName("head").item(0, 0) as HTMLHeadElement).appendChild(script as IHTMLDOMNode);
+
+                    //File.WriteAllText(@"e:\chat.txt", Document.documentElement.innerHTML);
+
+                }
+                else if (Document.url.StartsWith("ms-appx://microsoft.bingnews/"))
+                {
+                    // Document.parentWindow.execScript
+
+                    Action<HTMLDocument> setupFrames = (doc) =>
+                    {
+
+                        foreach (IHTMLElement iframe in doc.getElementsByTagName("iframe"))
+                        {
+                            var unsecureframe = WWADOMHelper.GetDocumentForFrame(iframe) as HTMLDocument;
+                            var css1 = unsecureframe.createStyleSheet();
+                            css1.title = "AccSupportCss";
+                            css1.cssText = "* { font-family: Verdana !important; font-size: 34px; line-height: 36px; }";
+                        }
+                    };
+
+
+                    var de = Document as HTMLDocumentEvents2_Event;
+                    de.onpropertychange += (o) =>
+                    {
+                        Trace.WriteLine("Property Change: " + o.srcElement);
+                        Trace.WriteLine("Property Change: " + o.toElement);
+                        Trace.WriteLine("Property Change: " + o.fromElement);
+                        Trace.WriteLine("Property Change: " + o.type);
+                        Trace.WriteLine("Property Change: " + o.reason);
+
+                        new Thread(() =>
+                        {
+                            Trace.WriteLine("Thread started");
+                            Thread.Sleep(1000);
+                            var doc = WWADOMHelper.GetDocumentForWindow(hWnd) as HTMLDocument;
+                            setupFrames(doc);
+                            Trace.WriteLine("IFrame Injected Complete");
+                        }).Start();
+                    };
+
+                    setupFrames(Document);
+
+
+
+                    /*
+                    evt.onpropertychange += () =>
+                        {
+
+                        };
+                    */
+                    //File.WriteAllText(@"e:\bingnews_story.txt", Document.documentElement.innerHTML);
+
+
+
+
+                    /*
+                    var frame = Document.frames.item(0) as IHTMLWindow2;
+
+                    var fx = ComHelper.GetBrowserFromWindow(Document as IHTMLDocument2, frame);
+
+                    Trace.WriteLine("FX: " + fx);
+
+                    var css1 = fx.createStyleSheet();
+                    css1.title = "AccSupportCss";
+                    css1.cssText = "* { font-family: Verdana !important; font-size: 34px; line-height: 36px; }";
+
+                    //frame.execScript("document.href='';");
+                    */
+                    /*
+                    foreach (IHTMLElement2 div in Document.getElementsByTagName("iframe"))
+                    {
+
+                        
+
+                        Trace.WriteLine(iframe.name);
+                        //Trace.WriteLine("Frames: " + (iframe.contentWindow).document);
+
+                        //File.WriteAllText(@"e:\bingnews_iframe.txt", dom.body.innerHTML);
+                    }
+ */
+
+                    //frame.execScript("document.write('HELL YEAH...............!')");
+
+                    /*
+                    foreach (IHTMLElement2 div in Document.getElementsByTagName("iframe"))
+                    {
+                        IHTMLWindow2 iframe = div as IHTMLWindow2;
+
+                        Trace.WriteLine(iframe.name);
+                        //Trace.WriteLine("Frames: " + (iframe.contentWindow).document);
+
+                        //File.WriteAllText(@"e:\bingnews_iframe.txt", dom.body.innerHTML);
+                    }
+                    */
+
+
+                    /*
+
+                    File.WriteAllText(@"e:\bingnews.txt", Document.documentElement.innerHTML);
+
+                    var css1 = Document.createStyleSheet();
+                    css1.title = "AccSupportCss";
+                    css1.cssText = "* { font-size: 50px !important; }";
+
+                    foreach(HTMLDivElement div in Document.getElementsByTagName("div"))
+                    {
+                        Trace.WriteLine("Frames: " + div.className);
+                        if (div.className == "contentBlock")
+                        {
+                            div.style.fontSize = "50px";
+                            Trace.WriteLine("" + div.hasChildNodes() + "");
+                        }
+                        //File.WriteAllText(@"e:\bingnews_iframe.txt", dom.body.innerHTML);
+                    }
+                    */
+
+                    /*
+                    var iframe = ;
+                    var idoc = iframe.document as HTMLDocument;
+                    File.WriteAllText(@"e:\bingnews_iframe.txt", idoc.documentElement.innerHTML);
+                    */
+                }
+
+                // ms-appx://20053ecsproull.groupon/default.html
+                else if (Document.url.StartsWith("ms-appx://20053ecsproull.groupon"))
+                {
+                    string defaultcss = @"
+                    .AccFontSizeControl
+                    {
+                        position: absolute;
+                        top: 8px; right: 4px; 
+                        display: block; 
+                        background: black; 
+                        color: white;
+                        border-radius: 20px; 
+                        font-size: 50px; 
+                        text-align: center;
+                        width: 40px; height: 40px; 
+                        line-height: 29px;   
+                        z-index: 9999;
+                    }";
+
+                    var css = Document.createStyleSheet();
+                    css.title = "AccSupportCss";
+                    css.cssText = defaultcss;
+
+                    var Body = Document.body as HTMLBody;
+
+                    var css1 = Document.createStyleSheet();
+                    css1.title = "AccSupportCss";
+                    css1.cssText = "p { font-size: 14.66px; }";
+
+                    var div = Document.createElement("div");
+                    div.innerHTML = @"
+                                <div class='AccFontSizeControl' style='right: 100px;' id='AccSupport_Color'>c</div>
+                                <div class='AccFontSizeControl' style='right: 50px;' id='AccSupport_Plus'>+</div>
+                                <div class='AccFontSizeControl' id='AccSupport_Minus'>-</div>";
+                    Body.appendChild(div as IHTMLDOMNode);
+
+                    // Note: onclick crashes WWA (?!)
+                    var js = @"
+                    function getCssRule(m)
+                    {
+                        for (var i=0; i<document.styleSheets.length; i++)
+                        {
+                            var sheet = document.styleSheets[i];
+                            var r = 0;
+                            var rule = false;
+                            do
+                            {
+                                rule = sheet.rules[r];
+                                if (rule && rule.selectorText.toLowerCase()==m.toLowerCase())
+                                {
+                                    return rule;
+                                }
+                            r++;
+                            } while(rule)
+                        }
+                        return null;
+                    }
+
+                    function getCssRules(m, cb)
+                    {
+                        for (var i=0; i<document.styleSheets.length; i++)
+                        {
+                            var sheet = document.styleSheets[i];
+                            var r = 0;
+                            var rule = false;
+                            do
+                            {
+                                rule = sheet.rules[r];
+                                if (rule && rule.selectorText.toLowerCase()==m.toLowerCase())
+                                {
+                                    cb(rule);
+                                }
+                            r++;
+                            } while(rule)
+                        }
+                    }
+
+                    function getFontSizeType(fontSize)
+                    {
+                        if (fontSize.indexOf('px') != -1)
+                        {
+                            return 'px';
+                        }
+                        if (fontSize.indexOf('pt') != -1)
+                        {
+                            return 'pt';
+                        }
+                        if (fontSize.indexOf('em') != -1)
+                        {
+                            return 'em';
+                        }
+                        if (fontSize.indexOf('ex') != -1)
+                        {
+                            return 'ex';
+                        }
+                        return 'px';
+                    }
+
+                    function getIncForfontSizeType(ty)
+                    {
+                        switch(ty)
+                        {
+                            case 'px':
+                                return 2;
+                            case 'px':
+                                return 2;
+                            case 'pt':
+                                return 1;
+                            case 'em':
+                                return 0.2;
+                            case 'ex':
+                                return 0.4;
+                        } 
+                        return 1;
+                    }
+
+                    function addProperty(prop, multip)
+                    {
+                        var ty = getFontSizeType(prop);
+                        var inc = getIncForfontSizeType(ty);
+                        return (parseFloat(prop) + (inc * multip)) + ty; 
+                    }
+
+                    function addFontSizeByRule(r, s)
+                    {
+                        var rule = getCssRule(r);
+                        if (rule != null)
+                        { 
+                            rule.style.fontSize = addProperty(rule.style.fontSize, s);
+                            rule.style.lineHeight = addProperty(rule.style.lineHeight, s);
+                        }
+                    }
+
+                    document.getElementById('AccSupport_Plus').addEventListener('click', function(){
+                        addFontSizeByRule('p', 1);
+                    }, false);
+                    document.getElementById('AccSupport_Minus').addEventListener('click', function(){
+                        addFontSizeByRule('p', -1);
+                    }, false);
+
+                    document.getElementById('AccSupport_Color').addEventListener('click', function(){
+                        getCssRules('.splitpage', function(rule)
+                        {
+                            rule.style.backgroundImage = '';
+                            rule.style.background = 'black';
+                        });
+/*
+getCssRule('.messagebody-localuser').style.background = 'darkblue';
+                        getCssRule('.messagebody-localuser').style.color = 'white';
+                        getCssRule('.chathistory-localuser').style.background = 'darkblue';
+                        getCssRule('.messagetimestamp-localuser').style.color = 'white';
+                        getCssRules('.chathistory-beak-local', function(rule)
+                        {
+                            rule.style.borderColor = 'darkblue transparent transparent darkblue';
+                        });
+
+                        getCssRule('.messagebody-buddy').style.background = 'darkgreen';
+                        getCssRule('.chathistory-buddy').style.background = 'darkgreen';
+                        getCssRules('.chathistory-beak-buddy', function(rule)
+                        {
+                            rule.style.borderColor = 'darkgreen darkgreen transparent transparent';
+                        });
+*/
+                    }, false);";
+
+                    var script = Document.createElement("script") as HTMLScriptElement;
+                    script.type = "text/javascript";
+                    script.innerText = js;
+                    (Document.getElementsByTagName("head").item(0, 0) as HTMLHeadElement).appendChild(script as IHTMLDOMNode);
+
+                    /*
+                    File.WriteAllText(@"e:\groupon.txt", Document.documentElement.innerHTML);
+
+                    Trace.WriteLine("sheets: " + Document.styleSheets.length);
+
+                    int i = 0;
+                    foreach (IHTMLStyleSheet sheet in Document.styleSheets)
+                    {
+                        File.WriteAllText(@"e:\groupon_css_ " + i + ".txt", sheet.cssText);
+                        i++;
+                    }
+
+                    var css = Document.createStyleSheet();
+                    css.title = "AccSupportCss";
+                    css.cssText = "p { font-size: 40px; }";
+                    */
+                }
+                else if (Document.url.StartsWith("ms-appx://winstore/"))
+                {
+                    //var frame = Document.frames.item(0) as IHTMLWindow2;
+
+                    //AppXTest.Common.Feature.WWADomAccess.CWWADOMAccess w = new AppXTest.Common.Feature.WWADomAccess.CWWADOMAccess();
+
+                    //var usf = w.GetDocumentFromFrame(Document.getElementById("WS")) as HTMLDocument;
+
+                    foreach (IHTMLElement iframe in Document.getElementsByTagName("iframe"))
+                    {
+                        var usf = WWADOMHelper.GetDocumentForFrame(iframe) as HTMLDocument;
+                        Trace.WriteLine("USF: " + usf.location.href);
+
+                        //File.WriteAllText(@"e:\store_install.txt", usf.documentElement.innerHTML);
+
+                        /*
+                        foreach (HTMLDivElement div in usf.getElementsByTagName("div"))
+                        {
+                            if (div.className != null && div.className.Contains("win-container"))
+                            {
+                                if (div.className.Contains("ATAccModified"))
+                                {
+                                    Trace.WriteLine("Not re-modiying!");
+                                }
+                                else
+                                {
+                                    Trace.WriteLine(div.style.height);
+
+                                    var h = div.style.height as string;
+                                    h = h.Replace("px", "");
+                                    var f = float.Parse(h);
+
+                                    div.style.height = (f + 20) + "px";
+                                    div.className += " ATAccModified";
+                                    Trace.WriteLine(div.style.height);
+                                }
+
+                            }
+                        }
+                        */
+
+                        foreach (IHTMLElement iframe2 in usf.getElementsByTagName("iframe"))
+                        {
+                            var usf2 = WWADOMHelper.GetDocumentForFrame(iframe2) as HTMLDocument;
+                            Trace.WriteLine("USF: " + usf2.location.href);
+
+                            //File.WriteAllText(@"e:\store_payment.txt", usf2.documentElement.innerHTML);
+
+                            int i = 0;
+                            foreach (IHTMLStyleSheet sheet in usf2.styleSheets)
+                            {
+                                //File.WriteAllText(@"e:\store_css_payment_" + i + ".txt", sheet.cssText);
+                                i++;
+                            }
+
+                            var css3 = usf2.createStyleSheet();
+                            css3.title = "AccSupportCss";
+                            css3.cssText = @"
+
+* {
+	font-size: 18pt !important;
+}
+";
+                        }
+
+
+
+                        var css1 = usf.createStyleSheet();
+                        css1.title = "AccSupportCss";
+                        css1.cssText = @"
+
+
+.tile 
+{
+	 height: 110px !important; 
+     width: 380px !important;
+}
+.appInstallTile
+{
+	 height: 110px !important; 
+     width: 380px !important;
+}
+
+.win-type-small {
+	font-size: 18pt;
+}
+.win-type-medium {
+	font-size: 18pt;
+}
+.win-type-large {
+	font-size: 21pt;
+}
+
+";
+
+                    }
+
+                    //var usf = ComHelper.GetSecureDocument(Document.getElementById("WS")) as HTMLDocument;
+
+                    //Trace.WriteLine("USF: " + usf.location.href);
+                    //File.WriteAllText("c:\\users\\daamenta\\desktop\\store.txt", usf.documentElement.innerHTML);
+
+                    //usf.clear();
+
+
+                    //Trace.WriteLine("sheets: " + usf.styleSheets.length);
+                    /*
+                    int i = 0;
+                    foreach (IHTMLStyleSheet sheet in usf.styleSheets)
+                    {
+                        File.WriteAllText(@"e:\store_css_main_" + i + ".txt", sheet.cssText);
+                        i++;
+                    }
+                    */
+
+                    /*
+                    .win-container[style]
+                    {
+                        height: 70px !important;
+                    }
+                    */
+                    // line-height: 1.3636; 
+                    /*
+                    File.WriteAllText(@"e:\store.txt", usf.documentElement.innerHTML);
+
+                    Trace.WriteLine("sheets: " + usf.styleSheets.length);
+
+                    int i = 0;
+                    foreach (IHTMLStyleSheet sheet in usf.styleSheets)
+                    {
+                        File.WriteAllText(@"e:\store_css_ " + i + ".txt", sheet.cssText);
+                        i++;
+                    }
+                    */
+
+                    //Trace.Write("Frame: " + frame.location.href);
+
+                    //var fx = ComHelper.GetIframeWindowFromWindow(Document as IHTMLDocument2, frame);
+
+                    //var wb = ComHelper.GetBrowserFromWindow(Document as IHTMLDocument2, frame);
+
+                    //Trace.Write("wb: " + wb.location);
+                    //Trace.Write("Win: " + fx.location.href);
+
+                    //File.WriteAllText(@"e:\winstore.txt", fx.body.innerHTML);
+                    //Trace.WriteLine(fx.body.innerHTML);
+
+                    /*
+                    File.WriteAllText(@"e:\winstore.txt", Document.documentElement.innerHTML);
+
+                    Trace.WriteLine("sheets: " + Document.styleSheets.length);
+
+                    int i = 0;
+                    foreach (IHTMLStyleSheet sheet in Document.styleSheets)
+                    {
+                        File.WriteAllText(@"e:\winstore_css_ " + i + ".txt", sheet.cssText);
+                        i++;
+                    }
+                    */
+                }
+                else if (Document.url.StartsWith("ms-appx://7989justincooperman.tweeetramaselfhost/"))
+                {
+                    // .timelineTweetText
+                    var css1 = Document.createStyleSheet();
+                    css1.title = "AccSupportCss";
+                    css1.cssText = @"
+                    .grid
+                    {
+                        -ms-grid-columns: 120px 820px 40px 436px 40px 360px 40px 436px 40px 360px 40px 436px 40px !important;
+                    }
+                    .timelineTweet
+                    {
+                        width: 802px !important;
+                    }
+                    .timelineTweetText 
+                    { 
+                        color: white;
+                        font-family: Verdana !important;
+                        font-size: 30px !important; 
+                        line-height: 34px !important; 
+                        width: 738px !important;
+                    }
+                    .timestamp 
+                    {
+	                    font-size: 20px;
+                    }
+                    .colorBackground
+                    {
+                        background-color: black !important;
+                    }
+                    .backgroundImage
+                    {
+                        z-index: 0 !important;
+                    }
+";
+
+
+                    /*
+                    File.WriteAllText(@"e:\tweet.txt", Document.documentElement.innerHTML);
+
+                    Trace.WriteLine("sheets: " + Document.styleSheets.length);
+
+                    int i = 0;
+                    foreach (IHTMLStyleSheet sheet in Document.styleSheets)
+                    {
+                        File.WriteAllText(@"e:\tweet_css_ " + i + ".txt", sheet.cssText);
+                        i++;
+                    }
+                    */
+                }
+            }
+            else
+            {
+                // TODO handle error
+            }
+        }

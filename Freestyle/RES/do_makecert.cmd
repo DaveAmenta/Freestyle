@@ -1,0 +1,1 @@
+x64\makecert -r -pe -n "CN=Test Certificate - For Internal Use Only" -ss PrivateCertStore testcert.cer

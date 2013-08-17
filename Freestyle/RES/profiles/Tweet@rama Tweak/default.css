@@ -1,0 +1,28 @@
+.grid
+{
+	-ms-grid-columns: 120px 820px 40px 436px 40px 360px 40px 436px 40px 360px 40px 436px 40px !important;
+}
+.timelineTweet
+{
+	width: 802px !important;
+}
+.timelineTweetText 
+{ 
+	color: white;
+	font-family: Verdana !important;
+	font-size: 30px !important; 
+	line-height: 34px !important; 
+	width: 738px !important;
+}
+.timestamp 
+{
+	font-size: 20px;
+}
+.colorBackground
+{
+	background-color: black !important;
+}
+.backgroundImage
+{
+	z-index: 0 !important;
+}

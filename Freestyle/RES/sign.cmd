@@ -1,0 +1,1 @@
+x64\signTool sign /v /s PrivateCertStore /n "Test Certificate - For Internal Use Only" /t http://timestamp.verisign.com/scripts/timestamp.dll Freestyle.exe

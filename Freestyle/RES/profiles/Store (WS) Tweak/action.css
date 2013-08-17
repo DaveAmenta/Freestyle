@@ -1,0 +1,20 @@
+.tile 
+{
+	 height: 110px !important; 
+     width: 380px !important;
+}
+.appInstallTile
+{
+	 height: 110px !important; 
+     width: 380px !important;
+}
+
+.win-type-small {
+	font-size: 18pt;
+}
+.win-type-medium {
+	font-size: 18pt;
+}
+.win-type-large {
+	font-size: 21pt;
+}
